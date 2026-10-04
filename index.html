@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>レシピ分量自動換算機</title>
+  <style>
+    :root {
+      --primary: #f97316;
+      --primary-hover: #ea580c;
+      --primary-light: #fff7ed;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #cbd5e1;
+      --border-focus: #f97316;
+      --accent: #10b981;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+      --radius: 12px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 20px 12px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    /* ヘッダー */
+    header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .header-title {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: var(--primary);
+    }
+
+    .header-title svg {
+      width: 32px;
+      height: 32px;
+      fill: currentColor;
+    }
+
+    .header-desc {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* カードコンテナ */
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 20px;
+      margin-bottom: 20px;
+      border: 1px solid rgba(226, 232, 240, 0.8);
+    }
+
+    /* プリセットバー */
+    .preset-section {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .preset-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .btn-chip {
+      background: #f1f5f9;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: var(--text);
+    }
+
+    .btn-chip:hover {
+      background: var(--primary-light);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    /* モード切替タブ */
+    .tab-group {
+      display: flex;
+      background: #f1f5f9;
+      padding: 4px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 10px 16px;
+      border: none;
+      background: transparent;
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+
+    .tab-btn.active {
+      background: var(--card-bg);
+      color: var(--primary);
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* コントロールエリア */
+    .control-panel {
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      gap: 12px;
+      background: var(--primary-light);
+      padding: 16px;
+      border-radius: 10px;
+      border: 1px solid #ffedd5;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .input-group label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .input-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .control-input {
+      width: 90px;
+      padding: 8px 10px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.2s;
+      background: #fff;
+    }
+
+    .control-select {
+      max-width: 140px;
+      padding: 8px 10px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      outline: none;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    .control-input:focus, .control-select:focus {
+      border-color: var(--primary);
+    }
+
+    .arrow-icon {
+      font-size: 1.5rem;
+      color: var(--primary);
+      font-weight: bold;
+    }
+
+    .ratio-badge {
+      display: block;
+      text-align: center;
+      margin-top: 10px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    /* テーブル・材料リスト */
+    .table-container {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    .ingredient-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 500px;
+    }
+
+    .ingredient-table th {
+      text-align: left;
+      padding: 10px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      border-bottom: 2px solid var(--border);
+    }
+
+    .ingredient-table td {
+      padding: 8px 6px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: middle;
+    }
+
+    .text-input, .number-input, .unit-input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.95rem;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .text-input:focus, .number-input:focus, .unit-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.2);
+    }
+
+    .result-cell {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--primary);
+      padding: 0 8px;
+      white-space: nowrap;
+    }
+
+    .btn-icon {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 6px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .btn-icon:hover {
+      background: #fee2e2;
+      color: var(--danger);
+    }
+
+    .btn-add {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      padding: 10px;
+      margin-top: 12px;
+      background: #f8fafc;
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-add:hover {
+      background: var(--primary-light);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    /* フッターアクション・精度選択 */
+    .action-panel {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .precision-selector {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .btn-main {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: var(--shadow-sm);
+      transition: background 0.2s;
+    }
+
+    .btn-main:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-secondary {
+      background: #e2e8f0;
+      color: var(--text);
+      border: none;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn-secondary:hover {
+      background: #cbd5e1;
+    }
+
+    /* トースト通知 */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--text);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      box-shadow: var(--shadow-lg);
+      transition: transform 0.3s ease;
+      z-index: 1000;
+      pointer-events: none;
+      opacity: 0;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    /* レスポンシブ調整 */
+    @media (max-width: 600px) {
+      .control-panel {
+        flex-direction: column;
+        gap: 8px;
+      }
+      .arrow-icon {
+        transform: rotate(90deg);
+      }
+      .control-input, .control-select {
+        width: 100%;
+        max-width: 200px;
+      }
+      .action-panel {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .btn-main, .btn-secondary {
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="header-title">
+      <svg viewBox="0 0 24 24">
+        <path d="M8.1 13.34l2.83-2.83-6.36-6.36a2 2 0 0 0-2.83 2.83l6.36 6.36zm4.24-4.24l2.83-2.83L8.81 0 5.98 2.83l6.36 6.27zM19 3a2 2 0 0 0-2 2v4.17l-1.17 1.17-2.83-2.83-1.41 1.41 2.83 2.83L12 14.17V21a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-5.17l5.41-5.41c.39-.39.59-.9.59-1.42V5a2 2 0 0 0-2-2h-1z"/>
+      </svg>
+      レシピ分量自動換算機
+    </div>
+    <div class="header-desc">人数や手元にある食材の量に合わせて全調味料を瞬時に自動計算</div>
+  </header>
+
+  <!-- プリセットバー -->
+  <div class="preset-section">
+    <span class="preset-label">お試しプリセット:</span>
+    <button class="btn-chip" onclick="loadPreset('nikujaga')">肉じゃが (2人分)</button>
+    <button class="btn-chip" onclick="loadPreset('curry')">カレー (4人分)</button>
+    <button class="btn-chip" onclick="loadPreset('pancake')">ホットケーキ (2人分)</button>
+    <button class="btn-chip" style="margin-left:auto; color:var(--danger);" onclick="clearAll()">クリア</button>
+  </div>
+
+  <div class="card">
+    <!-- モード切替タブ -->
+    <div class="tab-group">
+      <button class="tab-btn active" id="tab-servings" onclick="switchMode('servings')">👥 人数で換算</button>
+      <button class="tab-btn" id="tab-ingredient" onclick="switchMode('ingredient')">🍳 特定の食材量で換算</button>
+    </div>
+
+    <!-- コントロールエリア -->
+    <div class="control-panel">
+      <!-- 人数指定モードUI -->
+      <div id="mode-servings-ui" style="display: flex; gap: 12px; align-items: center; width: 100%; justify-content: center;">
+        <div class="input-group">
+          <label>元の人数</label>
+          <div class="input-wrapper">
+            <input type="number" id="base-servings" class="control-input" value="2" min="0.1" step="any" oninput="onConfigChange()">
+            <span>人分</span>
+          </div>
+        </div>
+        <div class="arrow-icon">➔</div>
+        <div class="input-group">
+          <label>作りたい人数</label>
+          <div class="input-wrapper">
+            <input type="number" id="target-servings" class="control-input" value="3" min="0.1" step="any" oninput="onConfigChange()">
+            <span>人分</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 食材基準モードUI -->
+      <div id="mode-ingredient-ui" style="display: none; gap: 12px; align-items: center; width: 100%; justify-content: center; flex-wrap: wrap;">
+        <div class="input-group">
+          <label>基準にする食材</label>
+          <select id="base-ingredient-select" class="control-select" onchange="onConfigChange()"></select>
+        </div>
+        <div class="input-group">
+          <label>元の分量</label>
+          <div class="input-wrapper">
+            <input type="number" id="base-ing-amount" class="control-input" value="100" readonly style="background:#f1f5f9;">
+            <span id="base-ing-unit">g</span>
+          </div>
+        </div>
+        <div class="arrow-icon">➔</div>
+        <div class="input-group">
+          <label>実際の分量</label>
+          <div class="input-wrapper">
+            <input type="number" id="target-ing-amount" class="control-input" value="150" min="0.1" step="any" oninput="onConfigChange()">
+            <span id="target-ing-unit">g</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="ratio-display" class="ratio-badge">換算倍率: 1.50 倍</div>
+  </div>
+
+  <!-- 材料テーブルカード -->
+  <div class="card">
+    <div class="table-container">
+      <table class="ingredient-table">
+        <thead>
+          <tr>
+            <th style="width: 35%;">材料・調味料名</th>
+            <th style="width: 20%;">元の分量</th>
+            <th style="width: 15%;">単位</th>
+            <th style="width: 22%;">換算後の分量</th>
+            <th style="width: 8%; text-align: center;">削除</th>
+          </tr>
+        </thead>
+        <tbody id="ingredient-list">
+          <!-- JSで動的生成 -->
+        </tbody>
+      </table>
+    </div>
+
+    <button class="btn-add" onclick="addIngredientRow()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      材料を追加
+    </button>
+  </div>
+
+  <!-- 操作・フッターパネル -->
+  <div class="card">
+    <div class="action-panel">
+      <div class="precision-selector">
+        <label for="precision">端数処理:</label>
+        <select id="precision" class="control-select" style="padding:4px 8px; font-size:0.85rem;" onchange="calculate()">
+          <option value="1">少数第1位まで (例: 1.5)</option>
+          <option value="2" selected>少数第2位まで (例: 1.25)</option>
+          <option value="0">四捨五入（整数）</option>
+        </select>
+      </div>
+
+      <div style="display: flex; gap: 8px;">
+        <button class="btn-main" onclick="copyToClipboard()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          結果をテキストコピー
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 単位選択用のdatalist -->
+<datalist id="unit-options">
+  <option value="g">
+  <option value="ml">
+  <option value="cc">
+  <option value="個">
+  <option value="本">
+  <option value="枚">
+  <option value="大さじ">
+  <option value="小さじ">
+  <option value="カップ">
+  <option value="つまみ">
+  <option value="適量">
+</datalist>
+
+<!-- トースト通知 -->
+<div id="toast" class="toast">クリップボードにコピーしました！</div>
+
+<script>
+  // --- アプリケーション状態 ---
+  let state = {
+    mode: 'servings', // 'servings' | 'ingredient'
+    baseServings: 2,
+    targetServings: 3,
+    baseIngredientId: null,
+    targetIngredientAmount: 150,
+    precision: 2,
+    ingredients: []
+  };
+
+  // プリセットデータ
+  const PRESETS = {
+    nikujaga: {
+      baseServings: 2,
+      targetServings: 3,
+      ingredients: [
+        { id: '1', name: '豚薄切り肉', amount: 200, unit: 'g' },
+        { id: '2', name: 'じゃがいも', amount: 2, unit: '個' },
+        { id: '3', name: '玉ねぎ', amount: 1, unit: '個' },
+        { id: '4', name: '人参', amount: 0.5, unit: '本' },
+        { id: '5', name: '醤油', amount: 2, unit: '大さじ' },
+        { id: '6', name: 'みりん', amount: 2, unit: '大さじ' },
+        { id: '7', name: '砂糖', amount: 1.5, unit: '大さじ' },
+        { id: '8', name: 'だし汁', amount: 200, unit: 'ml' }
+      ]
+    },
+    curry: {
+      baseServings: 4,
+      targetServings: 6,
+      ingredients: [
+        { id: '1', name: '牛豚合いびき肉', amount: 300, unit: 'g' },
+        { id: '2', name: '玉ねぎ', amount: 2, unit: '個' },
+        { id: '3', name: 'じゃがいも', amount: 2, unit: '個' },
+        { id: '4', name: '人参', amount: 1, unit: '本' },
+        { id: '5', name: 'カレールー', amount: 4, unit: '皿分' },
+        { id: '6', name: '水', amount: 600, unit: 'ml' }
+      ]
+    },
+    pancake: {
+      baseServings: 2,
+      targetServings: 4,
+      ingredients: [
+        { id: '1', name: 'ホットケーキミックス', amount: 150, unit: 'g' },
+        { id: '2', name: '卵', amount: 1, unit: '個' },
+        { id: '3', name: '牛乳', amount: 100, unit: 'ml' }
+      ]
+    }
+  };
+
+  // --- 初期化 ---
+  window.addEventListener('DOMContentLoaded', () => {
+    loadLocalStorage();
+    if (!state.ingredients || state.ingredients.length === 0) {
+      loadPreset('nikujaga');
+    } else {
+      render();
+    }
+  });
+
+  // LocalStorageから読み込み
+  function loadLocalStorage() {
+    try {
+      const saved = localStorage.getItem('recipe_calculator_data');
+      if (saved) {
+        state = { ...state, ...JSON.parse(saved) };
+      }
+    } catch (e) {
+      console.error('LocalStorage読み込みエラー:', e);
+    }
+  }
+
+  // LocalStorageへ保存
+  function saveLocalStorage() {
+    try {
+      localStorage.setItem('recipe_calculator_data', JSON.stringify(state));
+    } catch (e) {
+      console.error('LocalStorage保存エラー:', e);
+    }
+  }
+
+  // --- モード切替 ---
+  function switchMode(mode) {
+    state.mode = mode;
+    document.getElementById('tab-servings').classList.toggle('active', mode === 'servings');
+    document.getElementById('tab-ingredient').classList.toggle('active', mode === 'ingredient');
+    
+    document.getElementById('mode-servings-ui').style.display = mode === 'servings' ? 'flex' : 'none';
+    document.getElementById('mode-ingredient-ui').style.display = mode === 'ingredient' ? 'flex' : 'none';
+
+    if (mode === 'ingredient') {
+      updateBaseIngredientSelect();
+    }
+    
+    calculate();
+    saveLocalStorage();
+  }
+
+  // --- 基準食材セレクトボックスの更新 ---
+  function updateBaseIngredientSelect() {
+    const select = document.getElementById('base-ingredient-select');
+    select.innerHTML = '';
+    
+    state.ingredients.forEach((ing) => {
+      const opt = document.createElement('option');
+      opt.value = ing.id;
+      opt.textContent = ing.name || '名称未設定';
+      select.appendChild(opt);
+    });
+
+    if (state.baseIngredientId && state.ingredients.some(i => i.id === state.baseIngredientId)) {
+      select.value = state.baseIngredientId;
+    } else if (state.ingredients.length > 0) {
+      state.baseIngredientId = state.ingredients[0].id;
+      select.value = state.baseIngredientId;
+    }
+    
+    updateBaseIngredientInfo();
+  }
+
+  function updateBaseIngredientInfo() {
+    const ing = state.ingredients.find(i => i.id === document.getElementById('base-ingredient-select').value);
+    if (ing) {
+      state.baseIngredientId = ing.id;
+      document.getElementById('base-ing-amount').value = ing.amount;
+      document.getElementById('base-ing-unit').textContent = ing.unit || '';
+      document.getElementById('target-ing-unit').textContent = ing.unit || '';
+    }
+  }
+
+  // --- 計算ロジック ---
+  function getRatio() {
+    let ratio = 1;
+    if (state.mode === 'servings') {
+      const base = parseFloat(document.getElementById('base-servings').value) || 1;
+      const target = parseFloat(document.getElementById('target-servings').value) || 1;
+      ratio = target / base;
+    } else {
+      const ing = state.ingredients.find(i => i.id === state.baseIngredientId);
+      const baseAmount = ing ? parseFloat(ing.amount) || 0 : 0;
+      const targetAmount = parseFloat(document.getElementById('target-ing-amount').value) || 0;
+      ratio = baseAmount > 0 ? targetAmount / baseAmount : 1;
+    }
+    return isFinite(ratio) && !isNaN(ratio) ? ratio : 1;
+  }
+
+  function calculate() {
+    const ratio = getRatio();
+    const precision = parseInt(document.getElementById('precision').value, 10);
+    state.precision = precision;
+
+    document.getElementById('ratio-display').textContent = `換算倍率: ${ratio.toFixed(2)} 倍`;
+
+    state.ingredients.forEach(ing => {
+      const resultCell = document.getElementById(`result-${ing.id}`);
+      if (resultCell) {
+        const amt = parseFloat(ing.amount);
+        if (isNaN(amt) || ing.unit === '適量' || ing.unit === '少々') {
+          resultCell.textContent = ing.unit || '-';
+        } else {
+          const calculated = amt * ratio;
+          let formatted = calculated.toFixed(precision);
+          // 不要な末尾の0を削除（小数設定時）
+          if (precision > 0) {
+            formatted = parseFloat(formatted).toString();
+          }
+          resultCell.textContent = `${formatted} ${ing.unit}`;
+        }
+      }
+    });
+
+    saveLocalStorage();
+  }
+
+  // --- イベントハンドラ ---
+  function onConfigChange() {
+    state.baseServings = parseFloat(document.getElementById('base-servings').value) || 1;
+    state.targetServings = parseFloat(document.getElementById('target-servings').value) || 1;
+    state.targetIngredientAmount = parseFloat(document.getElementById('target-ing-amount').value) || 0;
+
+    if (state.mode === 'ingredient') {
+      updateBaseIngredientInfo();
+    }
+    calculate();
+  }
+
+  function onIngredientChange(id, field, value) {
+    const ing = state.ingredients.find(i => i.id === id);
+    if (ing) {
+      ing[field] = value;
+      if (field === 'amount' || field === 'unit') {
+        if (state.mode === 'ingredient' && id === state.baseIngredientId) {
+          updateBaseIngredientInfo();
+        }
+      }
+      if (field === 'name' && state.mode === 'ingredient') {
+        updateBaseIngredientSelect();
+      }
+      calculate();
+    }
+  }
+
+  // --- テーブル行の操作 ---
+  function addIngredientRow(data = { name: '', amount: 100, unit: 'g' }) {
+    const id = Date.now().toString() + Math.random().toString(36).substr(2, 4);
+    const newIng = { id, ...data };
+    state.ingredients.push(newIng);
+    
+    renderRow(newIng);
+    if (state.mode === 'ingredient') {
+      updateBaseIngredientSelect();
+    }
+    calculate();
+  }
+
+  function deleteRow(id) {
+    if (state.ingredients.length <= 1) {
+      showToast('少なくとも1つの材料が必要です');
+      return;
+    }
+    state.ingredients = state.ingredients.filter(i => i.id !== id);
+    const row = document.getElementById(`row-${id}`);
+    if (row) row.remove();
+
+    if (state.mode === 'ingredient') {
+      updateBaseIngredientSelect();
+    }
+    calculate();
+  }
+
+  // --- UIレンダリング ---
+  function render() {
+    document.getElementById('base-servings').value = state.baseServings;
+    document.getElementById('target-servings').value = state.targetServings;
+    document.getElementById('target-ing-amount').value = state.targetIngredientAmount;
+    document.getElementById('precision').value = state.precision;
+
+    const list = document.getElementById('ingredient-list');
+    list.innerHTML = '';
+    state.ingredients.forEach(ing => renderRow(ing));
+
+    switchMode(state.mode);
+  }
+
+  function renderRow(ing) {
+    const list = document.getElementById('ingredient-list');
+    const tr = document.createElement('tr');
+    tr.id = `row-${ing.id}`;
+
+    tr.innerHTML = `
+      <td>
+        <input type="text" class="text-input" value="${escapeHtml(ing.name)}" placeholder="例: 豚肉" oninput="onIngredientChange('${ing.id}', 'name', this.value)">
+      </td>
+      <td>
+        <input type="number" class="number-input" value="${ing.amount}" min="0" step="any" oninput="onIngredientChange('${ing.id}', 'amount', this.value)">
+      </td>
+      <td>
+        <input type="text" class="unit-input" list="unit-options" value="${escapeHtml(ing.unit)}" placeholder="単位" oninput="onIngredientChange('${ing.id}', 'unit', this.value)">
+      </td>
+      <td class="result-cell" id="result-${ing.id}">
+        -
+      </td>
+      <td style="text-align: center;">
+        <button class="btn-icon" onclick="deleteRow('${ing.id}')" title="削除">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+        </button>
+      </td>
+    `;
+
+    list.appendChild(tr);
+  }
+
+  // --- プリセット読み込み & クリア ---
+  function loadPreset(key) {
+    const preset = PRESETS[key];
+    if (preset) {
+      state.baseServings = preset.baseServings;
+      state.targetServings = preset.targetServings;
+      state.ingredients = JSON.parse(JSON.stringify(preset.ingredients));
+      state.baseIngredientId = state.ingredients[0].id;
+      render();
+      showToast('プリセットを読み込みました');
+    }
+  }
+
+  function clearAll() {
+    if (confirm('すべての材料をクリアしますか？')) {
+      state.ingredients = [];
+      addIngredientRow({ name: '', amount: '', unit: 'g' });
+    }
+  }
+
+  // --- クリップボードコピー ---
+  function copyToClipboard() {
+    const ratio = getRatio();
+    let text = '';
+
+    if (state.mode === 'servings') {
+      text += `【レシピ分量 (${state.targetServings}人分)】\n`;
+    } else {
+      text += `【レシピ分量 (換算倍率 ${ratio.toFixed(2)}倍)】\n`;
+    }
+
+    state.ingredients.forEach(ing => {
+      const resultCell = document.getElementById(`result-${ing.id}`);
+      const val = resultCell ? resultCell.textContent.trim() : '';
+      text += `・${ing.name || '名称未設定'}: ${val}\n`;
+    });
+
+    navigator.clipboard.writeText(text).then(() => {
+      showToast('結果をクリップボードにコピーしました！');
+    }).catch(err => {
+      console.error('コピー失敗:', err);
+      showToast('コピーに失敗しました');
+    });
+  }
+
+  // --- ユーティリティ ---
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => {
+      toast.classList.remove('show');
+    }, 2500);
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+</script>
+</body>
+</html>
